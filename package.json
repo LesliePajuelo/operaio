@@ -1,0 +1,31 @@
+{
+  "author": "Rapido Team <rapido@email.wal-mart.com>",
+  "bin": "lib/index.js",
+  "contributors": [
+    "Abha Gupta <agupta3@walmart.com>",
+    "Rainer Lichtenfeld <rlichtenfeld@walmartlabs.com>",
+    "Rodrigo Fernandez <rfernandez@walmartlabs.com>",
+    "Shriram Sharma <ssharma5@walmartlabs.com>"
+  ],
+  "dependencies": {
+    "@walmart/annesso": "0.0.1",
+    "async": "^1.5.2",
+    "dockerode": "^2.2.10",
+    "lodash": "^4.11.1",
+    "request": "^2.72.0",
+    "stream-line-wrapper": "^0.1.1",
+    "yargs": "^4.6.0"
+  },
+  "devDependencies": {
+    "eslint": "^2.8.0"
+  },
+  "name": "@walmart/operaio",
+  "repository": {
+    "type": "git",
+    "url": "git@gecgithub01.walmart.com:rapido/operaio.git"
+  },
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "version": "0.0.1"
+}
