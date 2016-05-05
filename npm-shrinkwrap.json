@@ -10,48 +10,6 @@
           "version": "1.6.0",
           "from": "https://npme.walmart.com/f/flat/_attachments/flat-1.6.0.tgz",
           "resolved": "https://npme.walmart.com/f/flat/_attachments/flat-1.6.0.tgz"
-        },
-        "winston": {
-          "version": "2.2.0",
-          "from": "https://npme.walmart.com/w/winston/_attachments/winston-2.2.0.tgz",
-          "resolved": "https://npme.walmart.com/w/winston/_attachments/winston-2.2.0.tgz",
-          "dependencies": {
-            "async": {
-              "version": "1.0.0",
-              "from": "https://npme.walmart.com/a/async/_attachments/async-1.0.0.tgz",
-              "resolved": "https://npme.walmart.com/a/async/_attachments/async-1.0.0.tgz"
-            },
-            "colors": {
-              "version": "1.0.3",
-              "from": "https://npme.walmart.com/c/colors/_attachments/colors-1.0.3.tgz",
-              "resolved": "https://npme.walmart.com/c/colors/_attachments/colors-1.0.3.tgz"
-            },
-            "cycle": {
-              "version": "1.0.3",
-              "from": "https://npme.walmart.com/c/cycle/_attachments/cycle-1.0.3.tgz",
-              "resolved": "https://npme.walmart.com/c/cycle/_attachments/cycle-1.0.3.tgz"
-            },
-            "eyes": {
-              "version": "0.1.8",
-              "from": "https://npme.walmart.com/e/eyes/_attachments/eyes-0.1.8.tgz",
-              "resolved": "https://npme.walmart.com/e/eyes/_attachments/eyes-0.1.8.tgz"
-            },
-            "isstream": {
-              "version": "0.1.2",
-              "from": "https://npme.walmart.com/i/isstream/_attachments/isstream-0.1.2.tgz",
-              "resolved": "https://npme.walmart.com/i/isstream/_attachments/isstream-0.1.2.tgz"
-            },
-            "pkginfo": {
-              "version": "0.3.1",
-              "from": "https://npme.walmart.com/p/pkginfo/_attachments/pkginfo-0.3.1.tgz",
-              "resolved": "https://npme.walmart.com/p/pkginfo/_attachments/pkginfo-0.3.1.tgz"
-            },
-            "stack-trace": {
-              "version": "0.0.9",
-              "from": "https://npme.walmart.com/s/stack-trace/_attachments/stack-trace-0.0.9.tgz",
-              "resolved": "https://npme.walmart.com/s/stack-trace/_attachments/stack-trace-0.0.9.tgz"
-            }
-          }
         }
       }
     },
@@ -59,6 +17,18 @@
       "version": "1.5.2",
       "from": "async@>=1.5.2 <2.0.0",
       "resolved": "https://npme.walmart.com/a/async/_attachments/async-1.5.2.tgz"
+    },
+    "backoff": {
+      "version": "2.5.0",
+      "from": "backoff@latest",
+      "resolved": "https://npme.walmart.com/b/backoff/_attachments/backoff-2.5.0.tgz",
+      "dependencies": {
+        "precond": {
+          "version": "0.2.3",
+          "from": "precond@>=0.2.0 <0.3.0",
+          "resolved": "https://npme.walmart.com/p/precond/_attachments/precond-0.2.3.tgz"
+        }
+      }
     },
     "dockerode": {
       "version": "2.2.10",
@@ -478,7 +448,7 @@
         },
         "isstream": {
           "version": "0.1.2",
-          "from": "isstream@>=0.1.2 <0.2.0",
+          "from": "isstream@>=0.1.0 <0.2.0",
           "resolved": "https://npme.walmart.com/i/isstream/_attachments/isstream-0.1.2.tgz"
         },
         "json-stringify-safe": {
@@ -539,6 +509,48 @@
           "version": "0.2.10",
           "from": "async@>=0.2.10 <0.3.0",
           "resolved": "https://npme.walmart.com/a/async/_attachments/async-0.2.10.tgz"
+        }
+      }
+    },
+    "winston": {
+      "version": "2.2.0",
+      "from": "winston@>=2.2.0 <3.0.0",
+      "resolved": "https://npme.walmart.com/w/winston/_attachments/winston-2.2.0.tgz",
+      "dependencies": {
+        "async": {
+          "version": "1.0.0",
+          "from": "async@>=1.0.0 <1.1.0",
+          "resolved": "https://npme.walmart.com/a/async/_attachments/async-1.0.0.tgz"
+        },
+        "colors": {
+          "version": "1.0.3",
+          "from": "colors@>=1.0.0 <1.1.0",
+          "resolved": "https://npme.walmart.com/c/colors/_attachments/colors-1.0.3.tgz"
+        },
+        "cycle": {
+          "version": "1.0.3",
+          "from": "cycle@>=1.0.0 <1.1.0",
+          "resolved": "https://npme.walmart.com/c/cycle/_attachments/cycle-1.0.3.tgz"
+        },
+        "eyes": {
+          "version": "0.1.8",
+          "from": "eyes@>=0.1.0 <0.2.0",
+          "resolved": "https://npme.walmart.com/e/eyes/_attachments/eyes-0.1.8.tgz"
+        },
+        "isstream": {
+          "version": "0.1.2",
+          "from": "isstream@>=0.1.0 <0.2.0",
+          "resolved": "https://npme.walmart.com/i/isstream/_attachments/isstream-0.1.2.tgz"
+        },
+        "pkginfo": {
+          "version": "0.3.1",
+          "from": "pkginfo@>=0.3.0 <0.4.0",
+          "resolved": "https://npme.walmart.com/p/pkginfo/_attachments/pkginfo-0.3.1.tgz"
+        },
+        "stack-trace": {
+          "version": "0.0.9",
+          "from": "stack-trace@>=0.0.0 <0.1.0",
+          "resolved": "https://npme.walmart.com/s/stack-trace/_attachments/stack-trace-0.0.9.tgz"
         }
       }
     },
