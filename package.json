@@ -1,6 +1,6 @@
 {
   "author": "Rapido Team <rapido@email.wal-mart.com>",
-  "bin": "lib/index.js",
+  "bin": "bin/index.js",
   "contributors": [
     "Abha Gupta <agupta3@walmart.com>",
     "Rainer Lichtenfeld <rlichtenfeld@walmartlabs.com>",

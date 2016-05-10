@@ -166,7 +166,7 @@ module.exports = {
         "padded-blocks": "off",
         "prefer-arrow-callback": "off",
         "prefer-const": "error",
-        "prefer-reflect": "error",
+        "prefer-reflect": "warn",
         "prefer-rest-params": "error",
         "prefer-spread": "error",
         "prefer-template": "error",

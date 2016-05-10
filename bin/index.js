@@ -143,7 +143,7 @@ internals.createRemoteDockerClient = function () {
 };
 
 internals.dockerRunAttached = function (docker, options, callback) {
-  var stream = internals.createLogStream(util.format('[%s]', options.Image));
+  var stream = internals.createLogStream(util.format('[%s] ', options.Image));
 
   docker.run(options.Image, options.Cmd, stream, options, function (error, data, container) {
     var statusCode = data && data.StatusCode;
@@ -250,16 +250,17 @@ internals.initialize = function (next) {
 
 internals.onDone = function (error, state) {
   if (error) {
-    internals.logger.error('Something went wrong! ¯\\_(ツ)_/¯', error);
+    internals.logger.error('Something went wrong! (╯°□°）╯︵ ┻━┻ ', error);
   }
 
-  internals.tearDown(state.containers, function (error) {
-    if (error) {
-      internals.logger.error('Error while tearing down... (╯°□°）╯︵ ┻━┻', error);
-      return process.exit(1);
-    }
+  internals.tearDown(state.containers, function (ignore, errors) {
+    //if (innerError) {
+    //  internals.logger.error('Error while tearing down... (╯°□°）╯︵ ┻━┻', innerError);
+    //}
 
-    return internals.logger.info('All done!');
+    internals.logger.info('All done!');
+
+    process.exit(error || errors ? -1 : 0);
   });
 };
 
@@ -422,9 +423,23 @@ internals.startMockServer = function (state, next) {
 
 internals.tearDown = function (containers, callback) {
   var filter = function (container) {
-    var hasRemove = typeof _.get(container, 'instance.remove') === 'function';
-    var isProtected = container && container.id === process.env.ELECTRODE_APP_BUILDER;
-    return hasRemove && !isProtected;
+    if (!container) {
+      return false;
+    }
+
+    if (!container.instance) {
+      return false;
+    }
+
+    if (typeof container.instance.remove !== 'function') {
+      return false;
+    }
+
+    if (container.instance.id === process.env.ELECTRODE_APP_BUILDER) {
+      return false;
+    }
+
+    return true;
   };
 
   var map = function (container) {
@@ -439,7 +454,7 @@ internals.tearDown = function (containers, callback) {
           internals.logger.warn('Error while removing container!', error, container);
         }
 
-        next(null);
+        next(null, error);
       });
     };
   };
@@ -451,7 +466,7 @@ internals.tearDown = function (containers, callback) {
 
   internals.logger.info('Tearing down...');
 
-  async.parallel(tasks, callback);
+  async.series(tasks, callback);
 };
 
 internals.waitForAppServer = function (state, next) {
