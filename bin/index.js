@@ -214,7 +214,6 @@ internals.getOptions = function () {
     .string('github-token')
     .default('kairos-host', 'kairos.stg.rapido.globalproducts.qa.walmart.com')
     .string('kairos-host')
-    .demand('mock-server-cmd')
     .string('mock-server-cmd')
     .default('mock-server-hostname', 'dev.walmart.com')
     .string('mock-server-hostname')
@@ -238,9 +237,10 @@ internals.initialize = function (next) {
     containers: {}
   };
 
+  state.options = internals.getOptions();
+
   internals.logger.info('Initializing...');
 
-  state.options = internals.getOptions();
   state.docker = internals.createDockerClient();
 
   internals.logger.info('Initialization complete.');
@@ -271,7 +271,7 @@ internals.run = function () {
   async.waterfall([
     internals.initialize,
     internals.build,
-    internals.startMockServer,
+    internals.testMockServer,
     internals.startAppServer,
     internals.waitForAppServer,
     internals.runSiteSpeed
@@ -359,12 +359,6 @@ internals.startAppServer = function (state, next) {
       util.format('APP_SERVER_CMD=%s', state.options.appServerCmd)
     ],
     HostConfig: {
-      ExtraHosts: [
-        util.format('dev.walmart.com:%s', state.containers.ottoMockServer.data.NetworkSettings.IPAddress)
-      ],
-      Links: [
-        util.format('%s:otto-mock-server', state.containers.ottoMockServer.data.Name)
-      ],
       PublishAllPorts: true,
       VolumesFrom: [
         state.containers.electrodeAppBuilder.instance.id
@@ -375,6 +369,19 @@ internals.startAppServer = function (state, next) {
     StdinOnce: false,
     Tty: false
   };
+
+  if (state.containers.ottoMockServer) {
+    options.HostConfig.ExtraHosts = [
+      util.format('dev.walmart.com:%s', state.containers.ottoMockServer.data.NetworkSettings.IPAddress)
+    ];
+    options.HostConfig.Links = [
+      util.format('%s:otto-mock-server', state.containers.ottoMockServer.data.Name)
+    ];
+  } else {
+    options.HostConfig.ExtraHosts = [
+      'dev.walmart.com:0.0.0.0'
+    ];
+  }
 
   internals.logger.info('Starting application server...', options);
 
@@ -387,6 +394,16 @@ internals.startAppServer = function (state, next) {
 
     next(error, state);
   });
+};
+
+internals.testMockServer = function (state, next) {
+  if (state.options.mockServerCmd) {
+    return internals.startMockServer(state, next);
+  }
+
+  internals.logger.info('Skipping mocking server...', state);
+
+  return next(null, state);
 };
 
 internals.startMockServer = function (state, next) {
