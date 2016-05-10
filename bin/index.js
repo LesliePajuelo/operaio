@@ -254,13 +254,16 @@ internals.onDone = function (error, state) {
   }
 
   internals.tearDown(state.containers, function (ignore, errors) {
-    //if (innerError) {
-    //  internals.logger.error('Error while tearing down... (╯°□°）╯︵ ┻━┻', innerError);
-    //}
+    var errorsCount = _.chain(errors)
+      .compact()
+      .size()
+      .value();
+
+    var exitCode = error || errorsCount ? -1 : 0;
 
     internals.logger.info('All done!');
 
-    process.exit(error || errors ? -1 : 0);
+    process.exit(exitCode);
   });
 };
 
