@@ -24,6 +24,8 @@ var internals = {};
 
 // Constants
 
+internals.SITESPEED_CPU_SHARES = 2 * 1024;
+
 internals.SPEED_QUOTES = [
   '"Every car has a lot of speed in it. The trick is getting the speed out of it." AJ Foyt',
   '"I am not a speed reader. I am a speed understander." Isaac Asimov',
@@ -221,6 +223,10 @@ internals.getOptions = function () {
     .string('prefix')
     .default('profile', 'default')
     .string('profile')
+    .string('sitespeed-output-dir')
+    .default('sitespeed-sample-size', 10)
+    .number('sitespeed-sample-size')
+    .boolean('sitespeed-screenshot')
     .demand('url')
     .array('url')
     .epilog(internals.getRandomQuote())
@@ -280,11 +286,13 @@ internals.run = function () {
 
 internals.runSiteSpeed = function (state, next) {
   var chromeJsonPath = path.resolve(__dirname, '../volumes/sitespeed/chrome.json');
+  var mobProxyPatchPath = path.resolve(__dirname, '../patches/mobproxy.js');
   var nodeModulesPath = path.resolve(__dirname, '../node_modules');
   var tenant = _.snakeCase(path.join(state.options.githubOrg, state.options.githubRepo));
 
   var binds = [
     util.format('%s:/tmp/chrome.json', chromeJsonPath),
+    util.format('%s:/usr/lib/node_modules/sitespeed.io/node_modules/browsertime/lib/proxy/mobproxy.js', mobProxyPatchPath),
     util.format('%s:/tmp/node_modules', nodeModulesPath)
   ];
 
@@ -304,6 +312,8 @@ internals.runSiteSpeed = function (state, next) {
     '/tmp/node_modules/@walmart/annesso/lib/collectors',
     '--postTasksDir',
     '/tmp/node_modules/@walmart/annesso/lib/postActions',
+    '--resultBaseDir',
+    '/tmp/sitespeed_result',
     '--seleniumServer',
     'http://0.0.0.0:4444/wd/hub',
     '--verbose',
@@ -312,10 +322,16 @@ internals.runSiteSpeed = function (state, next) {
     '-d',
     '0',
     '-n',
-    '10',
+    state.options.sitespeedSampleSize.toFixed().toString(10),
     '-u',
     state.options.url[0]
   ];
+
+  if (state.options.sitespeedScreenshot) {
+    cmd.push('--screenshot');
+  }
+
+  /*eslint-disable vars-on-top*/
 
   var extraHosts = [
     util.format('dev.walmart.com:%s', state.containers.electrodeApp.data.NetworkSettings.IPAddress)
@@ -328,6 +344,7 @@ internals.runSiteSpeed = function (state, next) {
     Cmd: cmd,
     HostConfig: {
       Binds: binds,
+      CpuShares: internals.SITESPEED_CPU_SHARES,
       ExtraHosts: extraHosts
     },
     Image: 'sitespeedio/sitespeed.io:3.11.5',
@@ -335,6 +352,8 @@ internals.runSiteSpeed = function (state, next) {
     StdinOnce: false,
     Tty: true
   };
+
+  /*eslint-enable vars-on-top*/
 
   internals.logger.info('Running sitespeed.io...', options);
 
@@ -490,11 +509,12 @@ internals.tearDown = function (containers, callback) {
 };
 
 internals.waitForAppServer = function (state, next) {
-  var host = _.get(state, 'containers.electrodeApp.data.NetworkSettings.Ports["3000/tcp"][0]');
+  var ip = _.get(state, 'containers.electrodeApp.data.NetworkSettings.Ports["3000/tcp"][0].HostIp');
+  var port = _.get(state, 'containers.electrodeApp.data.NetworkSettings.Ports["3000/tcp"][0].HostPort');
 
   var options = {
     timeout: 5000,
-    url: util.format('http://%s:%d', host.HostIp, host.HostPort)
+    url: util.format('http://%s:%d', ip, port)
   };
 
   var onGet = function (error) {
