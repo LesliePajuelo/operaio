@@ -223,10 +223,14 @@ internals.getOptions = function () {
     .string('prefix')
     .default('profile', 'default')
     .string('profile')
+    .boolean('resource-timing')
+    .default('resource-timing', false)
     .string('sitespeed-output-dir')
     .default('sitespeed-sample-size', 10)
     .number('sitespeed-sample-size')
     .boolean('sitespeed-screenshot')
+    .number('timestamp')
+    .default('timestamp', Date.now())
     .demand('url')
     .array('url')
     .epilog(internals.getRandomQuote())
@@ -304,8 +308,12 @@ internals.runSiteSpeed = function (state, next) {
     state.options.prefix,
     '--annessoProfile',
     state.options.profile,
+    '--annessoResourceTiming',
+    state.options.resourceTiming.toString(),
     '--annessoTenant',
     tenant,
+    '--annessoTimestamp',
+    state.options.timestamp.toFixed().toString(10),
     '--btConfig',
     '/tmp/chrome.json',
     '--collectors',
