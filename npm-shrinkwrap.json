@@ -3,8 +3,8 @@
   "version": "0.0.9",
   "dependencies": {
     "@walmart/annesso": {
-      "version": "0.0.3",
-      "from": "@walmart/annesso@0.0.3",
+      "version": "0.0.4",
+      "from": "@walmart/annesso@0.0.4",
       "dependencies": {
         "ansi-regex": {
           "version": "2.0.0",
@@ -845,7 +845,14 @@
     "follow-redirects": {
       "version": "0.0.3",
       "from": "follow-redirects@0.0.3",
-      "resolved": "https://npme.walmart.com/f/follow-redirects/_attachments/follow-redirects-0.0.3.tgz"
+      "resolved": "https://npme.walmart.com/f/follow-redirects/_attachments/follow-redirects-0.0.3.tgz",
+      "dependencies": {
+        "underscore": {
+          "version": "1.8.3",
+          "from": "underscore@latest",
+          "resolved": "https://npme.walmart.com/u/underscore/_attachments/underscore-1.8.3.tgz"
+        }
+      }
     },
     "forever-agent": {
       "version": "0.6.1",
@@ -1510,11 +1517,6 @@
       "version": "0.0.6",
       "from": "typedarray@>=0.0.5 <0.1.0",
       "resolved": "https://npme.walmart.com/t/typedarray/_attachments/typedarray-0.0.6.tgz"
-    },
-    "underscore": {
-      "version": "1.8.3",
-      "from": "underscore@latest",
-      "resolved": "https://npme.walmart.com/u/underscore/_attachments/underscore-1.8.3.tgz"
     },
     "user-home": {
       "version": "2.0.0",

@@ -318,6 +318,8 @@ internals.runSiteSpeed = function (state, next) {
     '/tmp/chrome.json',
     '--collectors',
     '/tmp/node_modules/@walmart/annesso/lib/collectors',
+    '--noYslow',
+    'true',
     '--postTasksDir',
     '/tmp/node_modules/@walmart/annesso/lib/postActions',
     '--resultBaseDir',
