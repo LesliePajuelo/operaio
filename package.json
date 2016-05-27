@@ -8,7 +8,7 @@
     "Shriram Sharma <ssharma5@walmartlabs.com>"
   ],
   "dependencies": {
-    "@walmart/annesso": "0.0.6",
+    "@walmart/annesso": "0.0.7",
     "async": "^1.5.2",
     "backoff": "^2.5.0",
     "dockerode": "^2.2.10",
