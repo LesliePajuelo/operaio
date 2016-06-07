@@ -26,6 +26,8 @@ var internals = {};
 
 internals.SITESPEED_CPU_SHARES = 2 * 1024;
 
+internals.SITESPEED_RETRY_INTERVAL = 30 * 1000;
+
 internals.SPEED_QUOTES = [
   '"Every car has a lot of speed in it. The trick is getting the speed out of it." AJ Foyt',
   '"I am not a speed reader. I am a speed understander." Isaac Asimov',
@@ -226,6 +228,8 @@ internals.getOptions = function () {
     .boolean('resource-timing')
     .default('resource-timing', false)
     .string('sitespeed-output-dir')
+    .number('sitespeed-retries')
+    .default('sitespeed-retries', 3)
     .default('sitespeed-sample-size', 10)
     .number('sitespeed-sample-size')
     .boolean('sitespeed-screenshot')
@@ -300,81 +304,96 @@ internals.runSiteSpeed = function (state, next) {
     util.format('%s:/tmp/node_modules', nodeModulesPath)
   ];
 
-  var cmd = [
-    'sitespeed.io',
-    '--annessoKairosHost',
-    state.options.kairosHost,
-    '--annessoPrefix',
-    state.options.prefix,
-    '--annessoProfile',
-    state.options.profile,
-    '--annessoResourceTiming',
-    state.options.resourceTiming.toString(),
-    '--annessoTenant',
-    tenant,
-    '--annessoTimestamp',
-    state.options.timestamp.toFixed().toString(10),
-    '--btConfig',
-    '/tmp/chrome.json',
-    '--collectors',
-    '/tmp/node_modules/@walmart/annesso/lib/collectors',
-    '--noYslow',
-    'true',
-    '--postTasksDir',
-    '/tmp/node_modules/@walmart/annesso/lib/postActions',
-    '--resultBaseDir',
-    '/tmp/sitespeed_result',
-    '--seleniumServer',
-    'http://0.0.0.0:4444/wd/hub',
-    '--verbose',
-    '-b',
-    'chrome',
-    '-d',
-    '0',
-    '-n',
-    state.options.sitespeedSampleSize.toFixed().toString(10),
-    '-u',
-    state.options.url[0]
-  ];
-
-  if (state.options.sitespeedScreenshot) {
-    cmd.push('--screenshot');
-  }
-
-  /*eslint-disable vars-on-top*/
-
   var extraHosts = [
     util.format('dev.walmart.com:%s', state.containers.electrodeApp.data.NetworkSettings.IPAddress)
   ];
 
-  var options = {
-    AttachStderr: true,
-    AttachStdin: true,
-    AttachStdout: true,
-    Cmd: cmd,
-    HostConfig: {
-      Binds: binds,
-      CpuShares: internals.SITESPEED_CPU_SHARES,
-      ExtraHosts: extraHosts
-    },
-    Image: 'sitespeedio/sitespeed.io:3.11.5',
-    OpenStdin: true,
-    StdinOnce: false,
-    Tty: true
-  };
+  var tasks = _.map(state.options.url, function (url) {
+    return function (callback) {
+      var cmd = [
+        'sitespeed.io',
+        '--annessoKairosHost',
+        state.options.kairosHost,
+        '--annessoPrefix',
+        state.options.prefix,
+        '--annessoProfile',
+        state.options.profile,
+        '--annessoResourceTiming',
+        state.options.resourceTiming.toString(),
+        '--annessoTenant',
+        tenant,
+        '--annessoTimestamp',
+        state.options.timestamp.toFixed().toString(10),
+        '--btConfig',
+        '/tmp/chrome.json',
+        '--collectors',
+        '/tmp/node_modules/@walmart/annesso/lib/collectors',
+        '--noYslow',
+        'true',
+        '--postTasksDir',
+        '/tmp/node_modules/@walmart/annesso/lib/postActions',
+        '--resultBaseDir',
+        '/tmp/sitespeed_result',
+        '--seleniumServer',
+        'http://0.0.0.0:4444/wd/hub',
+        '--verbose',
+        '-b',
+        'chrome',
+        '-d',
+        '0',
+        '-n',
+        state.options.sitespeedSampleSize.toFixed().toString(10),
+        '-u',
+        url
+      ];
 
-  /*eslint-enable vars-on-top*/
+      var options = {
+        AttachStderr: true,
+        AttachStdin: true,
+        AttachStdout: true,
+        Cmd: cmd,
+        HostConfig: {
+          Binds: binds,
+          CpuShares: internals.SITESPEED_CPU_SHARES,
+          ExtraHosts: extraHosts
+        },
+        Image: 'sitespeedio/sitespeed.io:3.11.5',
+        OpenStdin: true,
+        StdinOnce: false,
+        Tty: true
+      };
 
-  internals.logger.info('Running sitespeed.io...', options);
+      if (state.options.sitespeedScreenshot) {
+        options.Cmd.push('--screenshot');
+      }
 
-  internals.dockerRunAttached(state.docker, options, function (error, container) {
-    if (error) {
-      internals.logger.error('Error while running sitespeed.io!', error);
-    }
+      internals.logger.info('Running sitespeed.io for %s...', url, options);
 
-    state.containers.siteSpeed = container;
+      internals.dockerRunAttached(state.docker, options, function (error, container) {
+        var key = util.format('siteSpeed_%s', container.instance.id);
 
-    next(error, state);
+        if (error) {
+          internals.logger.error('Error while running sitespeed.io!', error);
+        }
+
+        state.containers[key] = container;
+
+        callback(error, state);
+      });
+    };
+  });
+
+  var retryableTasks = _.map(tasks, function (task) {
+    var options = {
+      interval: internals.SITESPEED_RETRY_INTERVAL,
+      times: state.options.sitespeedRetries
+    };
+
+    return async.retry(options, task);
+  });
+
+  async.series(retryableTasks, function (error, results) {
+    next(error, results[0]);
   });
 };
 
@@ -423,16 +442,6 @@ internals.startAppServer = function (state, next) {
 
     next(error, state);
   });
-};
-
-internals.testMockServer = function (state, next) {
-  if (state.options.mockServerCmd) {
-    return internals.startMockServer(state, next);
-  }
-
-  internals.logger.info('Skipping mocking server...', state);
-
-  return next(null, state);
 };
 
 internals.startMockServer = function (state, next) {
@@ -516,6 +525,16 @@ internals.tearDown = function (containers, callback) {
   internals.logger.info('Tearing down...');
 
   async.series(tasks, callback);
+};
+
+internals.testMockServer = function (state, next) {
+  if (state.options.mockServerCmd) {
+    return internals.startMockServer(state, next);
+  }
+
+  internals.logger.info('Skipping mocking server...', state);
+
+  return next(null, state);
 };
 
 internals.waitForAppServer = function (state, next) {
