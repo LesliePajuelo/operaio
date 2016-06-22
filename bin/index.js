@@ -557,7 +557,7 @@ internals.waitForAppServer = function (state, next) {
   };
 
   var onRetry = function (error) {
-    return error.code === 'ECONNRESET';
+    return error.code === 'ECONNRESET' || error.code === 'ECONNREFUSED';
   };
 
   var getRequest = backoff.call(request.get, options, onGet);
