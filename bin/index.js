@@ -17,6 +17,7 @@ var url = require('url');
 var util = require('util');
 var winston = require('winston');
 var yargs = require('yargs');
+var _ = require('lodash');
 
 // Internal members
 
@@ -246,6 +247,50 @@ internals.getRandomQuote = function () {
   return internals.SPEED_QUOTES[random];
 };
 
+internals.gitToKairos = function (state, next){
+ 
+  internals.logger.info("gitsha", state.options.gitSha);
+
+  var metric = state.options.gitSha;
+  var snake_Org = _.snakeCase(state.options.githubOrg);
+  var snakeRepo = _.snakeCase(state.options.githubRepo);
+  var metricname = "rapido." + snake_Org + "_" + snakeRepo + ".gitcommit";
+
+  internals.logger.info("metric: ", metricname);
+  var timestamp = Date.now();
+  var url = "https://gecgithub01.walmart.com" + "/"+ state.options.githubOrg + "/" + state.options.githubRepo + "/" +
+      "commit/" + state.options.gitSha;
+
+  var payloadObject = {'gitcommit': metric,'giturl': url};
+  var payload = JSON.stringify(payloadObject);
+  
+  internals.logger.info("payload ", payload);
+
+  var options = { method: 'POST',
+    url: state.options.kairosHost + '/api/v1/datapoints',
+    headers:
+    { 'postman-token': 'a82f3434-d82c-eb5d-3fff-e48cd1255b97',
+      'cache-control': 'no-cache',
+      'authorization': 'Basic YWRtaW46YWRtaW4=',
+      'content-type': 'application/json' },
+    body:
+        [ { name: metricname,
+          datapoints:
+              [ [ timestamp,
+                payload
+              ] ],
+          tags: { profile: 'default' } } ],
+    json: true };
+
+  request(options, function (error, response, body) {
+    if (error) throw new Error(error);
+  });
+
+  next(null, state);
+
+};
+
+
 internals.initialize = function (next) {
   var state = {
     containers: {}
@@ -288,7 +333,8 @@ internals.run = function () {
     internals.testMockServer,
     internals.startAppServer,
     internals.waitForAppServer,
-    internals.runSiteSpeed
+    internals.runSiteSpeed,
+    internals.gitToKairos
   ], internals.onDone);
 };
 

@@ -28,8 +28,7 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "prepublish": "npm test",
     "test": "npm run lint"
   },
-  "version": "0.0.14"
+  "version": "0.0.31"
 }
