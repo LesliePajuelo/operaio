@@ -353,8 +353,10 @@ internals.runSiteSpeed = function (state, next) {
   var extraHosts = [
     util.format('dev.walmart.com:%s', state.containers.electrodeApp.data.NetworkSettings.IPAddress)
   ];
-
-  var tasks = _.map(state.options.url, function (url) {
+  
+  internals.logger.info("State.options.url ", state.options.url)
+  var urls = state.options.url[0].split(" ");
+  var tasks = _.map(urls, function (url) {
     return function (callback) {
       var cmd = [
         'sitespeed.io',
