@@ -248,7 +248,6 @@ internals.getRandomQuote = function () {
 };
 
 internals.gitToKairos = function (state, next){
-  internals.logger.info("next , " next)
   internals.logger.info("gitsha", state.options.gitSha);
 
   var metric = state.options.gitSha;
@@ -442,7 +441,6 @@ internals.runSiteSpeed = function (state, next) {
 
   async.series(retryableTasks, function (error, results) {
     next(error, results[0]);
-    internals.logger.info("NEXT ",next);
     internals.logger.info("RESULTS[0] ",results[0])
   });
 };
