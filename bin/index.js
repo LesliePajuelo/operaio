@@ -267,7 +267,7 @@ internals.gitToKairos = function (state, next){
   internals.logger.info("payload ", payload);
 
   var options = { method: 'POST',
-    url: state.options.kairosHost + '/api/v1/datapoints',
+    url: 'kairos.stg.rapido.globalproducts.qa.walmart.com/api/v1/datapoints',
     headers:
     { 'postman-token': 'a82f3434-d82c-eb5d-3fff-e48cd1255b97',
       'cache-control': 'no-cache',
