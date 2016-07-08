@@ -248,7 +248,7 @@ internals.getRandomQuote = function () {
 };
 
 internals.gitToKairos = function (state, next){
- 
+  internals.logger.info("next , " next)
   internals.logger.info("gitsha", state.options.gitSha);
 
   var metric = state.options.gitSha;
