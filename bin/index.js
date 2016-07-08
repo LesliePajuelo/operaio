@@ -394,6 +394,8 @@ internals.runSiteSpeed = function (state, next) {
 
   async.series(retryableTasks, function (error, results) {
     next(error, results[0]);
+    internals.logger.info("NEXT ",next);
+    internals.logger.info("RESULTS[0] ",results[0])
   });
 };
 
