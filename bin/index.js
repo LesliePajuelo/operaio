@@ -17,7 +17,6 @@ var url = require('url');
 var util = require('util');
 var winston = require('winston');
 var yargs = require('yargs');
-var _ = require('lodash');
 
 // Internal members
 
@@ -201,45 +200,117 @@ internals.dockerRunDetached = function (docker, options, callback) {
   docker.createContainer(options, onCreate);
 };
 
+internals.getBudget = function (state) {
+  var actions;
+  var metricname = '';
+  var payload = '';
+  var snakeOrg = _.snakeCase(state.options.githubOrg);
+  var snakeRepo = _.snakeCase(state.options.githubRepo);
+  var timestamp = Date.now();
+  var timings = {};
+  var yamlObject = {};
+
+  state.budget = util.format('$s/git/budget.json', __dirname);
+  state.budgetAlert = util.format('$s/git/budgetAlert.json', __dirname);
+
+  //read
+  try {
+    yamlObject = yaml.safeLoad(fs.readFileSync(path.join(__dirname, '/git', state.options.githubOrg, state.options.githubRepo, 'rapido.yaml'), 'utf8'));
+    internals.logger.info('successfully loaded yaml file');
+
+    // validate
+    if (_.isObject(yamlObject)) {
+      internals.logger.info('yamlObject exists');
+    }
+
+    if (yamlObject.budget) {
+      internals.logger.info('Budget object exists');
+
+      if (yamlObject.budget.actions) {
+        actions = yamlObject.budget.actions;
+      }
+      if(yamlObject.budget.metrics) {
+        if (yamlObject.budget.metrics.timings) {
+          timings = yamlObject.budget.timings;
+
+          _.mapKeys(timings, function (value, key) {
+            //paylodObject defined here to prevent accumulation of metricname.
+            var payloadObject = {};
+            metricname = util.format('rapido.test.$s_$s_budget_$s', snakeOrg, snakeRepo, key);
+                // 'rapido.test.' + snakeOrg + '_' + snakeRepo + '_budget_' + key;
+            payloadObject[metricname] = value;
+            payload = JSON.stringify(payloadObject);
+
+            internals.sendToKairos(metricname, timestamp, payload);
+          });
+        }
+
+        if (yamlObject.budget.actions) {
+          if (_.indexOf(actions, 'break-build') !== -1) {
+            fs.writeFile(state.budget, JSON.stringify(yamlObject.budget.metrics), 'utf8', function (err) {
+              if (err) throw err;
+            });
+          }
+
+          if (_.indexOf(actions, 'alert') !== -1) {
+            fs.writeFile(state.budgetAlert, JSON.stringify(yamlObject.budget.metrics), 'utf8', function (err) {
+              if (err) {
+                throw err;
+              }
+            });
+          }
+        }
+      }
+    } else {
+      fs.writeFileSync(state.budget, "{'timings': {'headerTime': 500}", 'utf8');
+      internals.logger.info('Empty budget file has been created for sitespeed');
+    }
+
+  } catch (error) {
+    internals.logger.info('Error loading yaml', error);
+  }
+
+};
+
 internals.getOptions = function () {
   return yargs.usage('Usage: operaio [options]')
-    .demand('app-build-cmd')
-    .string('app-build-cmd')
-    .demand('app-server-cmd')
-    .string('app-server-cmd')
-    .default('app-server-hostname', 'dev.walmart.com')
-    .string('app-server-hostname')
-    .demand('git-sha')
-    .string('git-sha')
-    .demand('github-org')
-    .string('github-org')
-    .demand('github-repo')
-    .string('github-repo')
-    .demand('github-token')
-    .string('github-token')
-    .default('kairos-host', 'kairos.stg.rapido.globalproducts.qa.walmart.com')
-    .string('kairos-host')
-    .string('mock-server-cmd')
-    .default('mock-server-hostname', 'dev.walmart.com')
-    .string('mock-server-hostname')
-    .default('prefix', 'rapido')
-    .string('prefix')
-    .default('profile', 'default')
-    .string('profile')
-    .boolean('resource-timing')
-    .default('resource-timing', false)
-    .string('sitespeed-output-dir')
-    .number('sitespeed-retries')
-    .default('sitespeed-retries', 3)
-    .default('sitespeed-sample-size', 10)
-    .number('sitespeed-sample-size')
-    .boolean('sitespeed-screenshot')
-    .number('timestamp')
-    .default('timestamp', Date.now())
-    .demand('url')
-    .array('url')
-    .epilog(internals.getRandomQuote())
-    .argv;
+      .demand('app-build-cmd')
+      .string('app-build-cmd')
+      .demand('app-server-cmd')
+      .string('app-server-cmd')
+      .default('app-server-hostname', 'dev.walmart.com')
+      .string('app-server-hostname')
+      .demand('git-sha')
+      .string('git-sha')
+      .demand('github-org')
+      .string('github-org')
+      .demand('github-repo')
+      .string('github-repo')
+      .demand('github-token')
+      .string('github-token')
+      .default('kairos-host', 'kairos.stg.rapido.globalproducts.qa.walmart.com')
+      .string('kairos-host')
+      .string('mock-server-cmd')
+      .default('mock-server-hostname', 'dev.walmart.com')
+      .string('mock-server-hostname')
+      .default('prefix', 'rapido')
+      .string('prefix')
+      .default('profile', 'default')
+      .string('profile')
+      .boolean('resource-timing')
+      .default('resource-timing', false)
+      .string('sitespeed-output-dir')
+      .number('sitespeed-retries')
+      .default('sitespeed-retries', 3)
+      .default('sitespeed-sample-size', 10)
+      .number('sitespeed-sample-size')
+      .boolean('sitespeed-screenshot')
+      .number('timestamp')
+      .default('timestamp', Date.now())
+      .demand('url')
+      .array('url')
+      .epilog(internals.getRandomQuote())
+      .argv;
 };
 
 internals.getRandomQuote = function () {
@@ -247,48 +318,26 @@ internals.getRandomQuote = function () {
   return internals.SPEED_QUOTES[random];
 };
 
-internals.gitToKairos = function (state, next){
-  internals.logger.info("gitsha", state.options.gitSha);
-
+internals.gitToKairos = function (state, next) {
   var metric = state.options.gitSha;
-  var snake_Org = _.snakeCase(state.options.githubOrg);
+  var snakeOrg = _.snakeCase(state.options.githubOrg);
   var snakeRepo = _.snakeCase(state.options.githubRepo);
-  var metricname = "rapido." + snake_Org + "_" + snakeRepo + ".gitcommit";
-
-  internals.logger.info("metric: ", metricname);
+  // var metricname = 'rapido.' + snakeOrg + '_' + snakeRepo + '.gitcommit';
+  var metricname = util.format('rapido.$s_$s.gitcommit', snakeOrg, snakeRepo);
   var timestamp = Date.now();
-  var url = "https://gecgithub01.walmart.com" + "/"+ state.options.githubOrg + "/" + state.options.githubRepo + "/" +
-      "commit/" + state.options.gitSha;
-
-  var payloadObject = {'gitcommit': metric,'giturl': url};
+  // var url = 'https://gecgithub01.walmart.com/'+ state.options.githubOrg + '/' + state.options.githubRepo + '/'+
+  //     'commit/' + state.options.gitSha;
+  var url = util.format('https://gecgithub01.walmart.com/$s/$s/commit/$s', state.options.githubOrg, state.options.githubRepo, state.options.gitSha );
+  var payloadObject = {'gitcommit': metric, 'giturl': url};
   var payload = JSON.stringify(payloadObject);
-  
-  internals.logger.info("payload ", payload);
 
-  var options = { method: 'POST',
-    url: 'kairos.stg.rapido.globalproducts.qa.walmart.com/api/v1/datapoints',
-    headers:
-    { 'postman-token': 'a82f3434-d82c-eb5d-3fff-e48cd1255b97',
-      'cache-control': 'no-cache',
-      'authorization': 'Basic YWRtaW46YWRtaW4=',
-      'content-type': 'application/json' },
-    body:
-        [ { name: metricname,
-          datapoints:
-              [ [ timestamp,
-                payload
-              ] ],
-          tags: { profile: 'default' } } ],
-    json: true };
+  internals.logger.info('payload ', payload);
 
-  request(options, function (error, response, body) {
-    if (error) throw new Error(error);
-  });
+  internals.sendToKairos(metricname, timestamp, payload);
 
   next(null, state);
 
 };
-
 
 internals.initialize = function (next) {
   var state = {
@@ -296,6 +345,8 @@ internals.initialize = function (next) {
   };
 
   state.options = internals.getOptions();
+
+  // internals.getBudget(state);
 
   internals.logger.info('Initializing...');
 
@@ -313,9 +364,9 @@ internals.onDone = function (error, state) {
 
   internals.tearDown(state.containers, function (ignore, errors) {
     var errorsCount = _.chain(errors)
-      .compact()
-      .size()
-      .value();
+        .compact()
+        .size()
+        .value();
 
     var exitCode = error || errorsCount ? -1 : 0;
 
@@ -351,10 +402,7 @@ internals.runSiteSpeed = function (state, next) {
   var extraHosts = [
     util.format('dev.walmart.com:%s', state.containers.electrodeApp.data.NetworkSettings.IPAddress)
   ];
-  
-  internals.logger.info("State.options.url ", state.options.url);
   var urls = state.options.url[0].split(" ");
-  internals.logger.info("Urls", urls);
   var tasks = _.map(urls, function (url) {
     return function (callback) {
       var cmd = [
@@ -384,6 +432,7 @@ internals.runSiteSpeed = function (state, next) {
         '--seleniumServer',
         'http://0.0.0.0:4444/wd/hub',
         '--verbose',
+        '--storeJson',
         '-b',
         'chrome',
         '-d',
@@ -441,7 +490,29 @@ internals.runSiteSpeed = function (state, next) {
 
   async.series(retryableTasks, function (error, results) {
     next(error, results[0]);
-    internals.logger.info("RESULTS[0] ",results[0])
+    internals.logger.info('RESULTS[0] ', results[0])
+  });
+};
+
+internals.sendToKairos = function (metricname, timestamp, payload) {
+  var options = {method: 'POST',
+    url: 'kairos.stg.rapido.globalproducts.qa.walmart.com/api/v1/datapoints',
+    headers:
+    {'postman-token': 'a82f3434-d82c-eb5d-3fff-e48cd1255b97',
+      'cache-control': 'no-cache',
+      'authorization': 'Basic YWRtaW46YWRtaW4=',
+      'content-type': 'application/json'},
+    body:
+        [{name: metricname,
+          datapoints:
+              [[timestamp,
+                payload
+              ]],
+          tags: {profile: 'default'}}],
+    json: true};
+
+  request(options, function (error, response, body) {
+    if (error) throw new Error(error);
   });
 };
 
@@ -566,9 +637,9 @@ internals.tearDown = function (containers, callback) {
   };
 
   var tasks = _.chain(containers)
-    .filter(filter)
-    .map(map)
-    .value();
+      .filter(filter)
+      .map(map)
+      .value();
 
   internals.logger.info('Tearing down...');
 

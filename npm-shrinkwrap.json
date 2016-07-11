@@ -1,6 +1,6 @@
 {
   "name": "@walmart/operaio",
-  "version": "0.0.39",
+  "version": "0.0.43",
   "dependencies": {
     "@walmart/annesso": {
       "version": "0.0.7",
