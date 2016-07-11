@@ -332,8 +332,7 @@ internals.run = function () {
     internals.testMockServer,
     internals.startAppServer,
     internals.waitForAppServer,
-    internals.runSiteSpeed,
-    internals.gitToKairos
+    internals.runSiteSpeed
   ], internals.onDone);
 };
 
