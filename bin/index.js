@@ -9,6 +9,7 @@ var async = require('async');
 var backoff = require('backoff');
 var Dockerode = require('dockerode');
 var fs = require('fs');
+var yaml = require('js-yaml');
 var LineWrapper = require('stream-line-wrapper');
 var path = require('path');
 var request = require('request');
@@ -215,8 +216,8 @@ internals.getBudget = function (state) {
 
   //read
   try {
-    yamlObject = yaml.safeLoad(fs.readFileSync(path.join(__dirname, '/git', state.options.githubOrg, state.options.githubRepo, 'rapido.yaml'), 'utf8'));
-    internals.logger.info('successfully loaded yaml file');
+    yamlObject = yaml.safeLoad(fs.readFileSync('/var/lib/jenkins/workspace/Rapido/Staging/R_Rapido_Test_Home/rapido.yaml', 'utf8'));
+    internals.logger.info('successfully loaded yaml file, dirname: ', __dirname);
 
     // validate
     if (_.isObject(yamlObject)) {
@@ -229,7 +230,7 @@ internals.getBudget = function (state) {
       if (yamlObject.budget.actions) {
         actions = yamlObject.budget.actions;
       }
-      if(yamlObject.budget.metrics) {
+      if (yamlObject.budget.metrics) {
         if (yamlObject.budget.metrics.timings) {
           timings = yamlObject.budget.timings;
 
@@ -267,6 +268,7 @@ internals.getBudget = function (state) {
     }
 
   } catch (error) {
+    internals.logger.info('Dir name', __dirname)
     internals.logger.info('Error loading yaml', error);
   }
 
@@ -327,7 +329,7 @@ internals.gitToKairos = function (state, next) {
   var timestamp = Date.now();
   // var url = 'https://gecgithub01.walmart.com/'+ state.options.githubOrg + '/' + state.options.githubRepo + '/'+
   //     'commit/' + state.options.gitSha;
-  var url = util.format('https://gecgithub01.walmart.com/$s/$s/commit/$s', state.options.githubOrg, state.options.githubRepo, state.options.gitSha );
+  var url = util.format('https://gecgithub01.walmart.com/$s/$s/commit/$s', state.options.githubOrg, state.options.githubRepo, state.options.gitSha);
   var payloadObject = {'gitcommit': metric, 'giturl': url};
   var payload = JSON.stringify(payloadObject);
 
@@ -346,7 +348,7 @@ internals.initialize = function (next) {
 
   state.options = internals.getOptions();
 
-  // internals.getBudget(state);
+  internals.getBudget(state);
 
   internals.logger.info('Initializing...');
 
@@ -490,7 +492,7 @@ internals.runSiteSpeed = function (state, next) {
 
   async.series(retryableTasks, function (error, results) {
     next(error, results[0]);
-    internals.logger.info('RESULTS[0] ', results[0])
+    internals.logger.info('RESULTS[0] ', results[0]);
   });
 };
 
@@ -512,7 +514,9 @@ internals.sendToKairos = function (metricname, timestamp, payload) {
     json: true};
 
   request(options, function (error, response, body) {
-    if (error) throw new Error(error);
+    if (error) {
+      throw new Error(error);
+    }
   });
 };
 
