@@ -220,64 +220,61 @@ internals.getBudget = function (state) {
       if (error) {
         internals.logger.info("Unable to load yaml", error);
       } else {
-        internals.logger.info('no error loading yaml ', __diraname, yamlObject);
+        internals.logger.info('no error loading yaml ', __dirname, yamlObject);
+
+        // validate
+        if (_.isObject(yamlObject)) {
+          internals.logger.info('yamlObject exists');
+        }
+
+        if (yamlObject.budget) {
+          internals.logger.info('Budget object exists');
+
+          if (yamlObject.budget.actions) {
+            actions = yamlObject.budget.actions;
+            internals.logger.info('actions exist')
+          }
+          if (yamlObject.budget.metrics) {
+            if (yamlObject.budget.metrics.timings) {
+              internals.logger.info('metrics and timings exit')
+              timings = yamlObject.budget.timings;
+
+              _.mapKeys(timings, function (value, key) {
+                //paylodObject defined here to prevent accumulation of metricname.
+                var payloadObject = {};
+                metricname = util.format('rapido.test.$s_$s_budget_$s', snakeOrg, snakeRepo, key);
+                // 'rapido.test.' + snakeOrg + '_' + snakeRepo + '_budget_' + key;
+                payloadObject[metricname] = value;
+                payload = JSON.stringify(payloadObject);
+
+                internals.logger.info('Sending to Kairos');
+                internals.sendToKairos(metricname, timestamp, payload);
+              });
+            }
+
+            if (yamlObject.budget.actions) {
+              if (_.indexOf(actions, 'break-build') !== -1) {
+                fs.writeFile(state.budget, JSON.stringify(yamlObject.budget.metrics), 'utf8', function (err) {
+                  if (err) throw err;
+                });
+              }
+
+              if (_.indexOf(actions, 'alert') !== -1) {
+                fs.writeFile(state.budgetAlert, JSON.stringify(yamlObject.budget.metrics), 'utf8', function (err) {
+                  if (err) {
+                    throw err;
+                  }
+                });
+              }
+            }
+          }
+        } else {
+          fs.writeFileSync(state.budget, "{'timings': {'headerTime': 500}", 'utf8');
+          internals.logger.info('Empty budget file has been created for sitespeed');
+        }
       }
     })
     );
-
-      internals.logger.info('Didnt throw error! maybe!: ', __dirname, yamlObject);
-
-
-    // validate
-    if (_.isObject(yamlObject)) {
-      internals.logger.info('yamlObject exists');
-    }
-
-    if (yamlObject.budget) {
-      internals.logger.info('Budget object exists');
-
-      if (yamlObject.budget.actions) {
-        actions = yamlObject.budget.actions;
-        internals.logger.info('actions exist')
-      }
-      if (yamlObject.budget.metrics) {
-        if (yamlObject.budget.metrics.timings) {
-          internals.logger.info('metrics and timings exit')
-          timings = yamlObject.budget.timings;
-
-          _.mapKeys(timings, function (value, key) {
-            //paylodObject defined here to prevent accumulation of metricname.
-            var payloadObject = {};
-            metricname = util.format('rapido.test.$s_$s_budget_$s', snakeOrg, snakeRepo, key);
-                // 'rapido.test.' + snakeOrg + '_' + snakeRepo + '_budget_' + key;
-            payloadObject[metricname] = value;
-            payload = JSON.stringify(payloadObject);
-
-            internals.logger.info('Sending to Kairos');
-            internals.sendToKairos(metricname, timestamp, payload);
-          });
-        }
-
-        if (yamlObject.budget.actions) {
-          if (_.indexOf(actions, 'break-build') !== -1) {
-            fs.writeFile(state.budget, JSON.stringify(yamlObject.budget.metrics), 'utf8', function (err) {
-              if (err) throw err;
-            });
-          }
-
-          if (_.indexOf(actions, 'alert') !== -1) {
-            fs.writeFile(state.budgetAlert, JSON.stringify(yamlObject.budget.metrics), 'utf8', function (err) {
-              if (err) {
-                throw err;
-              }
-            });
-          }
-        }
-      }
-    } else {
-      fs.writeFileSync(state.budget, "{'timings': {'headerTime': 500}", 'utf8');
-      internals.logger.info('Empty budget file has been created for sitespeed');
-    }
 
   } catch (error) {
     internals.logger.info('Dir name', __dirname);
