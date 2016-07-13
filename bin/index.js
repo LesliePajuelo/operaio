@@ -414,7 +414,7 @@ internals.runSiteSpeed = function (state, next) {
         options.Cmd.push('--screenshot');
       }
 
-      internals.logger.info('Running sitespeed.io for %s...', url, options);
+      internals.logger.info('Running sitespeed.io for the following: %s...', urls, options);
 
       internals.dockerRunAttached(state.docker, options, function (error, container) {
         var key = util.format('siteSpeed_%s', container.instance.id);
