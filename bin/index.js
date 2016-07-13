@@ -352,8 +352,9 @@ internals.runSiteSpeed = function (state, next) {
     util.format('dev.walmart.com:%s', state.containers.electrodeApp.data.NetworkSettings.IPAddress)
   ];
   
-  internals.logger.info("State.options.url ", state.options.url)
+  internals.logger.info("State.options.url ", state.options.url);
   var urls = state.options.url[0].split(" ");
+  internals.logger.info("Urls", urls);
   var tasks = _.map(urls, function (url) {
     return function (callback) {
       var cmd = [
