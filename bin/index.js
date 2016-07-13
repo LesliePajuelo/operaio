@@ -211,13 +211,22 @@ internals.getBudget = function (state) {
   var timings = {};
   var yamlObject = {};
 
-  state.budget = util.format('$s/git/budget.json', __dirname);
-  state.budgetAlert = util.format('$s/git/budgetAlert.json', __dirname);
+  state.budget = '/tmp/budget.json';
+  state.budgetAlert = '/tmp/budgetAlert.json';
 
   //read
   try {
-    yamlObject = yaml.safeLoad(fs.readFileSync('/var/lib/jenkins/workspace/Rapido/Staging/R_Rapido_Test_Home/rapido.yaml', 'utf8'));
-    internals.logger.info('successfully loaded yaml file, dirname: ', __dirname);
+    yamlObject = yaml.safeLoad(fs.readFile('/var/lib/jenkins/workspace/Rapido/Staging/R_Rapido_Test_Home/rapido.yaml', 'utf8', function (error) {
+      if (error) {
+        internals.logger.info("Unable to load yaml", error);
+      } else {
+        internals.logger.info('no error loading yaml ', __diraname, yamlObject);
+      }
+    })
+    );
+
+      internals.logger.info('Didnt throw error! maybe!: ', __dirname, yamlObject);
+
 
     // validate
     if (_.isObject(yamlObject)) {
@@ -229,9 +238,11 @@ internals.getBudget = function (state) {
 
       if (yamlObject.budget.actions) {
         actions = yamlObject.budget.actions;
+        internals.logger.info('actions exist')
       }
       if (yamlObject.budget.metrics) {
         if (yamlObject.budget.metrics.timings) {
+          internals.logger.info('metrics and timings exit')
           timings = yamlObject.budget.timings;
 
           _.mapKeys(timings, function (value, key) {
@@ -242,6 +253,7 @@ internals.getBudget = function (state) {
             payloadObject[metricname] = value;
             payload = JSON.stringify(payloadObject);
 
+            internals.logger.info('Sending to Kairos');
             internals.sendToKairos(metricname, timestamp, payload);
           });
         }
@@ -268,7 +280,7 @@ internals.getBudget = function (state) {
     }
 
   } catch (error) {
-    internals.logger.info('Dir name', __dirname)
+    internals.logger.info('Dir name', __dirname);
     internals.logger.info('Error loading yaml', error);
   }
 
@@ -497,6 +509,7 @@ internals.runSiteSpeed = function (state, next) {
 };
 
 internals.sendToKairos = function (metricname, timestamp, payload) {
+  internals.logger.info('Received request to send to kairos')
   var options = {method: 'POST',
     url: 'kairos.stg.rapido.globalproducts.qa.walmart.com/api/v1/datapoints',
     headers:
@@ -515,6 +528,7 @@ internals.sendToKairos = function (metricname, timestamp, payload) {
 
   request(options, function (error, response, body) {
     if (error) {
+      internals.logger.info('Oh noes! there was an error sending to kairos: ', error, response, body);
       throw new Error(error);
     }
   });
