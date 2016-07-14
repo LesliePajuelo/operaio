@@ -9,6 +9,7 @@ var async = require('async');
 var backoff = require('backoff');
 var Dockerode = require('dockerode');
 var fs = require('fs');
+var helpers = require('./helpers')
 var yaml = require('js-yaml');
 var LineWrapper = require('stream-line-wrapper');
 var path = require('path');
@@ -202,85 +203,20 @@ internals.dockerRunDetached = function (docker, options, callback) {
 };
 
 internals.getBudget = function (state) {
-  var actions;
-  var metricname = '';
-  var payload = '';
-  var snakeOrg = _.snakeCase(state.options.githubOrg);
-  var snakeRepo = _.snakeCase(state.options.githubRepo);
-  var timestamp = Date.now();
-  var timings = {};
+  var tenant = _.snakeCase(path.join(state.options.githubOrg, state.options.githubRepo));
   var yamlObject = {};
+  var yamlLocation = '/var/lib/jenkins/workspace/Rapido/Staging/R_Rapido_Test_Home/rapido.yaml'
 
   state.budget = '/tmp/budget.json';
   state.budgetAlert = '/tmp/budgetAlert.json';
 
   //read
   try {
-    yamlObject = yaml.safeLoad(fs.readFile('/var/lib/jenkins/workspace/Rapido/Staging/R_Rapido_Test_Home/rapido.yaml', 'utf8', function (error) {
-      if (error) {
-        internals.logger.info("Unable to load yaml", error);
-      } else {
-        internals.logger.info('no error loading yaml ', __dirname, yamlObject);
-
-        // validate
-        if (_.isObject(yamlObject)) {
-          internals.logger.info('yamlObject exists');
-        }
-
-        if (yamlObject.budget) {
-          internals.logger.info('Budget object exists');
-
-          if (yamlObject.budget.actions) {
-            actions = yamlObject.budget.actions;
-            internals.logger.info('actions exist')
-          }
-          if (yamlObject.budget.metrics) {
-            if (yamlObject.budget.metrics.timings) {
-              internals.logger.info('metrics and timings exit')
-              timings = yamlObject.budget.timings;
-
-              _.mapKeys(timings, function (value, key) {
-                //paylodObject defined here to prevent accumulation of metricname.
-                var payloadObject = {};
-                metricname = util.format('rapido.test.$s_$s_budget_$s', snakeOrg, snakeRepo, key);
-                // 'rapido.test.' + snakeOrg + '_' + snakeRepo + '_budget_' + key;
-                payloadObject[metricname] = value;
-                payload = JSON.stringify(payloadObject);
-
-                internals.logger.info('Sending to Kairos');
-                internals.sendToKairos(metricname, timestamp, payload);
-              });
-            }
-
-            if (yamlObject.budget.actions) {
-              if (_.indexOf(actions, 'break-build') !== -1) {
-                fs.writeFile(state.budget, JSON.stringify(yamlObject.budget.metrics), 'utf8', function (err) {
-                  if (err) throw err;
-                });
-              }
-
-              if (_.indexOf(actions, 'alert') !== -1) {
-                fs.writeFile(state.budgetAlert, JSON.stringify(yamlObject.budget.metrics), 'utf8', function (err) {
-                  if (err) {
-                    throw err;
-                  }
-                });
-              }
-            }
-          }
-        } else {
-          fs.writeFileSync(state.budget, "{'timings': {'headerTime': 500}", 'utf8');
-          internals.logger.info('Empty budget file has been created for sitespeed');
-        }
-      }
-    })
-    );
-
+    yamlObject = yaml.safeLoad(fs.readFileSync(yamlLocation, 'utf8'));
+    helpers.yamlValidation(yamlObject, state, tenant);
   } catch (error) {
-    internals.logger.info('Dir name', __dirname);
-    internals.logger.info('Error loading yaml', error);
+    internals.logger.info('Error reading yaml: ', error);
   }
-
 };
 
 internals.getOptions = function () {
@@ -344,7 +280,7 @@ internals.gitToKairos = function (state, next) {
 
   internals.logger.info('payload ', payload);
 
-  internals.sendToKairos(metricname, timestamp, payload);
+  helpers.sendToKairos(metricname, timestamp, payload);
 
   next(null, state);
 
@@ -502,32 +438,6 @@ internals.runSiteSpeed = function (state, next) {
   async.series(retryableTasks, function (error, results) {
     next(error, results[0]);
     internals.logger.info('RESULTS[0] ', results[0]);
-  });
-};
-
-internals.sendToKairos = function (metricname, timestamp, payload) {
-  internals.logger.info('Received request to send to kairos')
-  var options = {method: 'POST',
-    url: 'kairos.stg.rapido.globalproducts.qa.walmart.com/api/v1/datapoints',
-    headers:
-    {'postman-token': 'a82f3434-d82c-eb5d-3fff-e48cd1255b97',
-      'cache-control': 'no-cache',
-      'authorization': 'Basic YWRtaW46YWRtaW4=',
-      'content-type': 'application/json'},
-    body:
-        [{name: metricname,
-          datapoints:
-              [[timestamp,
-                payload
-              ]],
-          tags: {profile: 'default'}}],
-    json: true};
-
-  request(options, function (error, response, body) {
-    if (error) {
-      internals.logger.info('Oh noes! there was an error sending to kairos: ', error, response, body);
-      throw new Error(error);
-    }
   });
 };
 
@@ -703,6 +613,7 @@ internals.waitForAppServer = function (state, next) {
   getRequest.failAfter(10);
   getRequest.start();
 };
+
 
 // Run
 
