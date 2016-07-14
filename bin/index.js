@@ -205,7 +205,9 @@ internals.dockerRunDetached = function (docker, options, callback) {
 internals.getBudget = function (state) {
   var tenant = _.snakeCase(path.join(state.options.githubOrg, state.options.githubRepo));
   var yamlObject = {};
-  var yamlLocation = '/var/lib/jenkins/workspace/Rapido/Staging/R_Rapido_Test_Home/rapido.yaml'
+  var yamlLocation = '/var/lib/jenkins/workspace/Rapido/Staging/R_Rapido_Test_Home/rapido.yaml';
+  // var yamlLocation = '/Users/lpajuel/Desktop/rapido.yaml';
+
 
   state.budget = '/tmp/budget.json';
   state.budgetAlert = '/tmp/budgetAlert.json';
@@ -267,20 +269,22 @@ internals.getRandomQuote = function () {
 
 internals.gitToKairos = function (state, next) {
   var metric = state.options.gitSha;
-  var snakeOrg = _.snakeCase(state.options.githubOrg);
-  var snakeRepo = _.snakeCase(state.options.githubRepo);
-  // var metricname = 'rapido.' + snakeOrg + '_' + snakeRepo + '.gitcommit';
-  var metricname = util.format('rapido.$s_$s.gitcommit', snakeOrg, snakeRepo);
+  var tenant = _.snakeCase(path.join(state.options.githubOrg, state.options.githubRepo));
   var timestamp = Date.now();
-  // var url = 'https://gecgithub01.walmart.com/'+ state.options.githubOrg + '/' + state.options.githubRepo + '/'+
-  //     'commit/' + state.options.gitSha;
-  var url = util.format('https://gecgithub01.walmart.com/$s/$s/commit/$s', state.options.githubOrg, state.options.githubRepo, state.options.gitSha);
-  var payloadObject = {'gitcommit': metric, 'giturl': url};
-  var payload = JSON.stringify(payloadObject);
 
-  internals.logger.info('payload ', payload);
+  var url = util.format('https://gecgithub01.walmart.com/$s/$s/commit/$s', state.options.githubOrg, state.options.githubRepo, metric);
+  var valueObject = {'gitcommit': metric, 'giturl': url};
+  var value = JSON.stringify(valueObject);
 
-  helpers.sendToKairos(metricname, timestamp, payload);
+  var payload = [{
+    "name": util.format("rapido.%s.gitCommit", tenant),
+    "datapoints": [[timestamp,  value]],
+    "tags": {
+      "profile": "default"
+    }
+  }];
+
+  helpers.sendToKairos(payload);
 
   next(null, state);
 
@@ -327,6 +331,7 @@ internals.run = function () {
   async.waterfall([
     internals.initialize,
     internals.build,
+    internals.gitToKairos,
     internals.testMockServer,
     internals.startAppServer,
     internals.waitForAppServer,

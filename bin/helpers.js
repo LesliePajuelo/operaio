@@ -3,7 +3,6 @@ var async = require('async');
 var backoff = require('backoff');
 var Dockerode = require('dockerode');
 var fs = require('fs');
-var yaml = require('js-yaml');
 var LineWrapper = require('stream-line-wrapper');
 var path = require('path');
 var request = require('request');
@@ -11,6 +10,7 @@ var stream = require('stream');
 var url = require('url');
 var util = require('util');
 var winston = require('winston');
+var yaml = require('js-yaml');
 var yargs = require('yargs');
 
 var internals = {};
@@ -21,35 +21,24 @@ internals.logger = new winston.Logger({
     ]
 });
 
-exports.sendToKairos = function (metricname, timestamp, payload) {
-    internals.logger.info('Received request to send to kairos')
-    var options = {method: 'POST',
-        url: 'kairos.stg.rapido.globalproducts.qa.walmart.com/api/v1/datapoints',
-        headers:
-        {'postman-token': 'a82f3434-d82c-eb5d-3fff-e48cd1255b97',
-            'cache-control': 'no-cache',
-            'authorization': 'Basic YWRtaW46YWRtaW4=',
-            'content-type': 'application/json'},
-        body:
-            [{name: metricname,
-                datapoints:
-                    [[timestamp,
-                        payload
-                    ]],
-                tags: {profile: 'default'}}],
-        json: true};
+exports.sendToKairos = function (payload) {
 
-    request(options, function (error, response, body) {
-        if (error) {
-            internals.logger.info('Oh noes! there was an error sending to kairos: ', error, response, body);
-            throw new Error(error);
-        }
+    internals.logger.info('Received request to send to kairos');
+    
+    var options = {
+        method: 'POST',
+        url: 'http://kairos.stg.rapido.globalproducts.qa.walmart.com/api/v1/datapoints',
+        json: true,
+        body: payload
+    };
+
+    request.post(options, function (err, res, body) {
+        internals.logger.info('REQUEST RESULTS:', err, body);
     });
 };
 
+
 exports.yamlValidation = function (yamlObject, state, tenant) {
-    var metricname = '';
-    var payload = '';
     var timestamp = Date.now();
     var timings = {};
 
@@ -68,16 +57,17 @@ exports.yamlValidation = function (yamlObject, state, tenant) {
             timings = yamlObject.budget.metrics.timings;
 
             _.mapKeys(timings, function (value, key) {
-                //paylodObject defined here to prevent accumulation of metricname.
-                var payloadObject = {};
-                metricname = util.format('rapido.test.%s_budget_%s', tenant, key);
-                payloadObject[metricname] = value;
-                payload = JSON.stringify(payloadObject);
+                // paylodObject declared here to prevent accumulation
+                var payload = [{
+                    "name": "rapido." + tenant + ".budget." + key,
+                    "datapoints": [[timestamp,  value]],
+                    "tags": {
+                        "profile": "default"
+                    }
+                }];
+                exports.sendToKairos(payload);
 
-                internals.logger.info('Sending to Kairos ', payload);
-                sendToKairos(metricname, timestamp, payload);
             });
-
 
             if (yamlObject.budget.actions) {
                 if (_.indexOf(actions, 'break-build') !== -1) {
