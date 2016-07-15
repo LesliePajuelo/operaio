@@ -20,6 +20,7 @@ var url = require('url');
 var util = require('util');
 var winston = require('winston');
 var yargs = require('yargs');
+var budgetAlert = require('/tmp/budgetAlert.json');
 
 // Internal members
 
@@ -96,6 +97,9 @@ internals.build = function (state, next) {
 
     next(error, state);
   });
+};
+
+internals.readFiles = function (state) {
 };
 
 internals.createDockerClient = function () {
@@ -205,7 +209,7 @@ internals.dockerRunDetached = function (docker, options, callback) {
 
 internals.getBudget = function (state, next) {
   var tenant = _.snakeCase(path.join(state.options.githubOrg, state.options.githubRepo));
-  var yamlObject = {};
+  var performanceBudget = {};
   var directory = path.resolve(__dirname, '..', '..','..');
   state.budget = '/tmp/budget.json';
   state.budgetAlert = '/tmp/budgetAlert.json';
@@ -214,14 +218,14 @@ internals.getBudget = function (state, next) {
 
   find.eachfile(/rapido.yaml/,directory, function (files) {
 
-    var yamlLocation = files;
-    internals.logger.info('yamlLocation', yamlLocation)
+    var pbLocation = files;
+    internals.logger.info('pbLocation', pbLocation)
 
     //read
 
     try {
-      yamlObject = yaml.safeLoad(fs.readFileSync(yamlLocation, 'utf8'));
-      helpers.yamlValidation(yamlObject, state, tenant);
+      performanceBudget = yaml.safeLoad(fs.readFileSync(pbLocation, 'utf8'));
+      helpers.yamlValidation(performanceBudget, state, tenant);
       next(null, state, next);
 
     } catch (error) {
@@ -295,7 +299,7 @@ internals.gitToKairos = function (state, next) {
     }
   }];
 
-  helpers.sendToKairos(payload);
+  helpers.sendToKairos(payload, state);
 
   next(null, state);
 
@@ -307,6 +311,8 @@ internals.initialize = function (next) {
   };
 
   state.options = internals.getOptions();
+
+  state.kairosUrl = 'http://kairos.stg.rapido.globalproducts.qa.walmart.com';
 
   internals.logger.info('Initializing...');
 
@@ -341,11 +347,11 @@ internals.run = function () {
     internals.initialize,
     internals.getBudget,
     internals.build,
-    internals.gitToKairos,
     internals.testMockServer,
     internals.startAppServer,
     internals.waitForAppServer,
-    internals.runSiteSpeed
+    internals.runSiteSpeed,
+    internals.gitToKairos,
   ], internals.onDone);
 };
 
