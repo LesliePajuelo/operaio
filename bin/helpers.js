@@ -24,7 +24,7 @@ internals.logger = new winston.Logger({
 exports.sendToKairos = function (payload) {
 
     internals.logger.info('Received request to send to kairos');
-    
+
     var options = {
         method: 'POST',
         url: 'http://kairos.stg.rapido.globalproducts.qa.walmart.com/api/v1/datapoints',
@@ -38,12 +38,12 @@ exports.sendToKairos = function (payload) {
 };
 
 
-exports.yamlValidation = function (yamlObject, state, tenant) {
+exports.yamlValidation = function (yamlObject, state, tenant, callback) {
     var timestamp = Date.now();
     var timings = {};
 
     if (_.isObject(yamlObject)) {
-        internals.logger.info('yamlObject has been created');
+        internals.logger.info('yamlObject has been created', yamlObject);
     }
 
     if (yamlObject.budget) {
@@ -65,6 +65,7 @@ exports.yamlValidation = function (yamlObject, state, tenant) {
                         "profile": "default"
                     }
                 }];
+                internals.logger.info('key, value, tenant, Payload ', key, value, tenant, payload)
                 exports.sendToKairos(payload);
 
             });

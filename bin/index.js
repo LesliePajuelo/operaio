@@ -8,8 +8,9 @@ var _ = require('lodash');
 var async = require('async');
 var backoff = require('backoff');
 var Dockerode = require('dockerode');
+var find = require('find');
 var fs = require('fs');
-var helpers = require('./helpers')
+var helpers = require('./helpers');
 var yaml = require('js-yaml');
 var LineWrapper = require('stream-line-wrapper');
 var path = require('path');
@@ -202,23 +203,33 @@ internals.dockerRunDetached = function (docker, options, callback) {
   docker.createContainer(options, onCreate);
 };
 
-internals.getBudget = function (state) {
+internals.getBudget = function (state, next) {
   var tenant = _.snakeCase(path.join(state.options.githubOrg, state.options.githubRepo));
   var yamlObject = {};
-  var yamlLocation = '/var/lib/jenkins/workspace/Rapido/Staging/R_Rapido_Test_Home/rapido.yaml';
-  // var yamlLocation = '/Users/lpajuel/Desktop/rapido.yaml';
-
-
+  var directory = path.resolve(__dirname, '..', '..','..');
   state.budget = '/tmp/budget.json';
   state.budgetAlert = '/tmp/budgetAlert.json';
 
-  //read
-  try {
-    yamlObject = yaml.safeLoad(fs.readFileSync(yamlLocation, 'utf8'));
-    helpers.yamlValidation(yamlObject, state, tenant);
-  } catch (error) {
-    internals.logger.info('Error reading yaml: ', error);
-  }
+  internals.logger.info('Seaching the following parent directory ', directory);
+
+  find.eachfile(/rapido.yaml/,directory, function (files) {
+
+    var yamlLocation = files;
+    internals.logger.info('yamlLocation', yamlLocation)
+
+    //read
+
+    try {
+      yamlObject = yaml.safeLoad(fs.readFileSync(yamlLocation, 'utf8'));
+      helpers.yamlValidation(yamlObject, state, tenant);
+      next(null, state, next);
+
+    } catch (error) {
+      internals.logger.info('Error reading yaml: ', error);
+    }
+  }).error(function (err) {
+    if (err) internals.logger.info('find error, ', err)
+  });
 };
 
 internals.getOptions = function () {
@@ -297,8 +308,6 @@ internals.initialize = function (next) {
 
   state.options = internals.getOptions();
 
-  internals.getBudget(state);
-
   internals.logger.info('Initializing...');
 
   state.docker = internals.createDockerClient();
@@ -330,6 +339,7 @@ internals.onDone = function (error, state) {
 internals.run = function () {
   async.waterfall([
     internals.initialize,
+    internals.getBudget,
     internals.build,
     internals.gitToKairos,
     internals.testMockServer,
