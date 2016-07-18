@@ -7,6 +7,7 @@
 var _ = require('lodash');
 var async = require('async');
 var backoff = require('backoff');
+var budgetAlert = require('/tmp/budgetAlert.json');
 var Dockerode = require('dockerode');
 var find = require('find');
 var fs = require('fs');
@@ -20,7 +21,6 @@ var url = require('url');
 var util = require('util');
 var winston = require('winston');
 var yargs = require('yargs');
-var budgetAlert = require('/tmp/budgetAlert.json');
 
 // Internal members
 
@@ -96,6 +96,49 @@ internals.build = function (state, next) {
     state.containers.electrodeAppBuilder = container;
 
     next(error, state);
+  });
+};
+
+internals.compareBudget = function (state, next) {
+
+  var measuredValue = 0;
+  var tenant = _.snakeCase(path.join(state.options.githubOrg, state.options.githubRepo));
+
+  _.forEach(budgetAlert, function(timings) {
+    _.forEach(timings, function(budgetValue, key){
+
+      var payload = {
+        "start_relative": {
+          "value": "1",
+          "unit": "days"
+        },
+        "end_relative": {
+          "value": "1",
+          "unit": "seconds"
+        },
+        "metrics":[{
+          "name": "rapido." + tenant + ".http_dev_walmart_com_3000." + key,
+          "tags": {
+              "profile": "default"
+          },
+          "order": "desc",
+          "limit": 1
+        }
+      ]
+      }
+
+      helpers.kairosQuery(payload, state, function(res, body){
+        // internals.logger.info('KairosQuery Success', res.statusCode, body)
+        measuredValue = body.queries[0].results[0].values[0][1];
+        if (measuredValue > budgetValue) {
+          internals.logger.info(key, ' is over budget by ', measuredValue - budgetValue, 'milliseconds')
+        } else {
+          internals.logger.info(key, ' is at or under budget by ', budgetValue - measuredValue, 'milliseconds' )
+        }
+
+        next(null, state);
+      });
+    });
   });
 };
 
@@ -346,6 +389,7 @@ internals.run = function () {
   async.waterfall([
     internals.initialize,
     internals.getBudget,
+    internals.compareBudget,
     internals.build,
     internals.testMockServer,
     internals.startAppServer,
